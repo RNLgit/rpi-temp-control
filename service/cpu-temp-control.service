@@ -1,0 +1,11 @@
+[Unit]
+Description=Fan controlled cpu temperature
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/pi/src/rpi-sense-datalogger/datalogger/controller.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
