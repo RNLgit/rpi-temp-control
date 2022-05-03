@@ -1,8 +1,8 @@
-from RPi.GPIO import BOARD, BCM
 from rpi_hardware_pwm import HardwarePWM
 import atexit
 
-
+BOARD = 10
+BCM = 11
 HW_PWM_MAP = {BOARD: {12: 0, 35: 1},
               BCM: {18: 0, 19: 1}}
 AUDIBLE_SPECTRUM = range(20, 20_000)

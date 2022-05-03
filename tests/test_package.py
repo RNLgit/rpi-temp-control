@@ -1,6 +1,6 @@
 import pytest
 from rpi_hardware_pwm import HardwarePWMException
-from rpictrl import *
+from rpictrl import NMosPWM
 
 
 def test_dependencies():
