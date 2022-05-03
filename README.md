@@ -1,4 +1,7 @@
 # rpi-temp-control
+[![Python package](https://github.com/RNLgit/rpi-temp-control/actions/workflows/python-package.yml/badge.svg)](
+https://github.com/RNLgit/rpi-temp-control/actions/workflows/python-package.yml)
+
 A lightweight service that cools raspberry pi cpu temperature by pwm fan.
 
 ## Hardware Set-up
