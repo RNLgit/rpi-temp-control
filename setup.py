@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(
-    name="temp-controller",
+    name="rpictrl",
     version="0.0.1",
     description='RPI cpu temperature pwm fan controller',
     long_description=open('README.md').read(),
