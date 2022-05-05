@@ -104,18 +104,31 @@ class CPUTempController(NMosPWM):
         temp = result.split('=')[1][0:4]  # will get temp=52^C
         return round(float(temp), round_to)
 
+    @classmethod
+    def linear_duty_cycle(cls, temp_now, temp_min, temp_max, dc_min, dc_max):
+        """
+        Algorithm to calculate two points linear duty cycle
+        :param temp_now: current temp
+        :param temp_min: min temperature to kick in control
+        :param temp_max: max temperature need full control
+        :param dc_min: min duty cycle can turn on device under control, matches temp_min
+        :param dc_max: max duty cycle at temp_max and above
+        :return:
+        """
+        dc = (dc_max - dc_min) / (temp_max - temp_min) * (temp_now - temp_min) - dc_min
+        return int(dc) if dc >= dc_min else 0
+
     def fan_self_test(self):
         if self.is_stopped:
             self.start_pwm(20)
             time.sleep(3)
             self.stop_pwm()
 
-    def linear_duty_cycle(self):
+    def calc_dc_cpu(self):
         if not hasattr(self, 'temp_max') or not hasattr(self, 'temp_min'):
             raise ValueError('need to specify temp_mim and temp_max for linear duty cycle calc')
-        dc = (self.duty_cycle_max - self.duty_cycle_min) / (self.temp_max - self.temp_min) * \
-             (self.get_cpu_temp() - self.duty_cycle_min) + self.duty_cycle_min
-        return int(dc) if dc >= self.duty_cycle_min else 0
+        return self.linear_duty_cycle(temp_now=self.get_cpu_temp(), temp_min=self.temp_min, temp_max=self.temp_max,
+                                      dc_min=self.duty_cycle_min, dc_max=self.duty_cycle_max)
 
     def run(self):
         pass
