@@ -86,10 +86,12 @@ class NMosPWM(Controller):
 
 class CPUTempController(Thread, NMosPWM):
     def __init__(self, **kwargs):
-        super(CPUTempController, self).__init__(**kwargs)
         for key, arg in kwargs.items():
             setattr(self, key, arg)
-        self.max_duty_cycle = 100
+        super(CPUTempController, self).__init__(pin_no=self.pin_no, frequency=self.frequency,
+                                                pinout_type=self.pinout_type)
+        for key, arg in kwargs.items():
+            setattr(self, key, arg)
 
     @staticmethod
     def get_cpu_temp(round_to=2) -> float:
