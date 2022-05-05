@@ -12,19 +12,19 @@ RPI_TEMP_CMD = ['vcgencmd', 'measure_temp']
 
 
 class Controller(object):
-    def start_pwm(self, duty_cycle: int):
+    def start_pwm(self, duty_cycle: int) -> None:
         raise NotImplementedError
 
-    def set_frequency(self, frequency: int):
+    def set_frequency(self, frequency: int) -> None:
         raise NotImplementedError
 
-    def set_duty_cycle(self, duty_cycle: int):
+    def set_duty_cycle(self, duty_cycle: int) -> None:
         raise NotImplementedError
 
-    def stop_pwm(self):
+    def stop_pwm(self) -> None:
         raise NotImplementedError
 
-    def exit_handler(self):
+    def exit_handler(self) -> None:
         self.stop_pwm()
         print('Fan control stopped')
 
@@ -60,26 +60,26 @@ class NMosPWM(Controller):
     def duty_cycle(self, value):
         self.set_duty_cycle(value)
 
-    def set_frequency(self, frequency: int):
+    def set_frequency(self, frequency: int) -> None:
         if frequency <= 0:
             raise ValueError('frequency need to be positive non-zero int')
         self.pwm.change_frequency(frequency)
         self.__frequency = frequency
 
-    def set_duty_cycle(self, duty_cycle: int):
+    def set_duty_cycle(self, duty_cycle: int) -> None:
         if not 0 <= duty_cycle <= 100:
             raise ValueError('Duty cycle can only be non negative int from 0 to 100')
         self.pwm.change_duty_cycle(duty_cycle)
         self.__duty_cycle = duty_cycle
 
-    def start_pwm(self, duty_cycle: int):
+    def start_pwm(self, duty_cycle: int) -> None:
         if not 0 <= duty_cycle <= 100:
             raise ValueError('Duty cycle can only be non negative int from 0 to 100')
         self.pwm.start(duty_cycle)
         self.__duty_cycle = duty_cycle
         self.is_stopped = False
 
-    def stop_pwm(self):
+    def stop_pwm(self) -> None:
         self.pwm.stop()
         self.is_stopped = True
 
@@ -105,7 +105,7 @@ class CPUTempController(NMosPWM):
         return round(float(temp), round_to)
 
     @classmethod
-    def linear_duty_cycle(cls, temp_now, temp_min, temp_max, dc_min, dc_max):
+    def linear_duty_cycle(cls, temp_now: float, temp_min: float, temp_max: float, dc_min: int, dc_max: int) -> int:
         """
         Algorithm to calculate two points linear duty cycle
         :param temp_now: current temp
@@ -118,19 +118,19 @@ class CPUTempController(NMosPWM):
         dc = (dc_max - dc_min) / (temp_max - temp_min) * (temp_now - temp_min) - dc_min
         return int(dc) if dc >= dc_min else 0
 
-    def fan_self_test(self):
+    def fan_self_test(self) -> None:
         if self.is_stopped:
             self.start_pwm(20)
             time.sleep(3)
             self.stop_pwm()
 
-    def calc_dc_cpu(self):
+    def calc_dc_cpu(self) -> int:
         if not hasattr(self, 'temp_max') or not hasattr(self, 'temp_min'):
             raise ValueError('need to specify temp_mim and temp_max for linear duty cycle calc')
         return self.linear_duty_cycle(temp_now=self.get_cpu_temp(), temp_min=self.temp_min, temp_max=self.temp_max,
                                       dc_min=self.duty_cycle_min, dc_max=self.duty_cycle_max)
 
-    def run(self):
+    def run(self) -> None:
         pass
 
 
