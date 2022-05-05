@@ -4,7 +4,7 @@ After=multi-user.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 /home/pi/src/rpi-temp-control/temp-controller/controller.py
+ExecStart=/usr/bin/python3 /home/pi/src/rpi-temp-control/rpictrl/controller.py
 Restart=on-failure
 
 [Install]
