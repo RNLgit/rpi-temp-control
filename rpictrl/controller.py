@@ -84,12 +84,11 @@ class NMosPWM(Controller):
         self.is_stopped = True
 
 
-class CPUTempController(Thread, NMosPWM):
+class CPUTempController(NMosPWM):
     def __init__(self, **kwargs):
         for key, arg in kwargs.items():
             setattr(self, key, arg)
-        super(CPUTempController, self).__init__(pin_no=self.pin_no, frequency=self.frequency,
-                                                pinout_type=self.pinout_type)
+        super(CPUTempController, self).__init__(pin_no=self.pin_no, frequency=self.freq, pinout_type=self.pinout_type)
         for key, arg in kwargs.items():
             setattr(self, key, arg)
 
@@ -147,7 +146,7 @@ if __name__ == '__main__':
 
     ops = parser.parse_args()
 
-    ctc = CPUTempController(pin_no=ops.pin, frequency=ops.frequency, pinout_type=type_map[ops.board_type],
+    ctc = CPUTempController(pin_no=ops.pin, freq=ops.frequency, pinout_type=type_map[ops.board_type],
                             temp_min=ops.temp_min, temp_max=ops.temp_max, duty_cycle_min=ops.duty_cycle,
                             duty_cycle_max=ops.duty_cycle_max, settle_time=ops.settle_time)
     atexit.register(ctc.exit_handler)
