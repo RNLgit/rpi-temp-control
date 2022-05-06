@@ -115,7 +115,7 @@ class CPUTempController(NMosPWM):
         :param dc_max: max duty cycle at temp_max and above
         :return:
         """
-        dc = (dc_max - dc_min) / (temp_max - temp_min) * (temp_now - temp_min) - dc_min
+        dc = (dc_max - dc_min) / (temp_max - temp_min) * (temp_now - temp_min) + dc_min
         return int(dc) if dc >= dc_min else 0
 
     def fan_self_test(self) -> None:
