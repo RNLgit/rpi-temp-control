@@ -2,6 +2,7 @@ from rpi_hardware_pwm import HardwarePWM
 from threading import Thread, Event
 import subprocess
 import atexit
+from collections import deque
 
 BOARD = 10
 BCM = 11
@@ -91,6 +92,10 @@ class CPUTempController(NMosPWM):
         super(CPUTempController, self).__init__(pin_no=self.pin_no, frequency=self.freq, pinout_type=self.pinout_type)
         for key, arg in kwargs.items():
             setattr(self, key, arg)
+        if 'temp_q_size' not in kwargs:
+            setattr(self, 'temp_q_size', 10)  # temperature queue size that stores past n temperature samples
+        self.temp_q = deque(maxlen=self.temp_q_size)
+        self.job = Thread
 
     @staticmethod
     def get_cpu_temp(round_to=2) -> float:
@@ -118,10 +123,10 @@ class CPUTempController(NMosPWM):
         dc = (dc_max - dc_min) / (temp_max - temp_min) * (temp_now - temp_min) + dc_min
         return int(dc) if dc >= dc_min else 0
 
-    def fan_self_test(self) -> None:
+    def fan_self_test(self, duration=3) -> None:
         if self.is_stopped:
             self.start_pwm(20)
-            time.sleep(3)
+            time.sleep(duration)
             self.stop_pwm()
 
     def calc_dc_cpu(self) -> int:
@@ -130,8 +135,32 @@ class CPUTempController(NMosPWM):
         return self.linear_duty_cycle(temp_now=self.get_cpu_temp(), temp_min=self.temp_min, temp_max=self.temp_max,
                                       dc_min=self.duty_cycle_min, dc_max=self.duty_cycle_max)
 
+    def poll_temp_interval(self) -> float:
+        return 1
+
+    def start(self) -> None:
+        self.start_pwm(self.calc_dc_cpu())
+        self.job = MonitorJob(self)
+        self.job.start()
+
+
+class MonitorJob(Thread):
+    def __init__(self, controller: CPUTempController):
+        """
+        https://medium.com/greedygame-engineering/an-elegant-way-to-run-periodic-tasks-in-python-61b7c477b679
+        """
+        super(MonitorJob, self).__init__()
+        self.daemon = True
+        self.stopped = Event()
+        self.controller = controller
+
+    def stop(self) -> None:
+        self.stopped.set()
+        self.join()
+
     def run(self) -> None:
-        pass
+        while not self.stopped.wait(self.controller.poll_temp_interval()):
+            self.controller.set_frequency(self.controller.calc_dc_cpu())
 
 
 if __name__ == '__main__':
