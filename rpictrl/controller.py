@@ -3,7 +3,6 @@ from threading import Thread, Event
 import subprocess
 import atexit
 from collections import deque
-from statistics import mean
 
 BOARD = 10
 BCM = 11
@@ -140,20 +139,26 @@ class CPUTempController(NMosPWM):
 
     @property
     def is_lingering(self) -> bool:
-        if any([i < self.temp_min for i in self.temp_q]) and any([i > self.temp_max for i in self.temp_q]) \
-                and mean(self.temp_q) < self.temp_min:
+        """
+        lingering in a state that temperature occasional above minimum turn on value and mean values lower than minimum.
+        i.e. not going to turn on fan at this state.
+        """
+        if not all([i < self.temp_min for i in self.temp_q]):
             return True
         return False
 
     @property
-    def is_ramping_down(self) -> bool:
-        if self.duty_cycle != 0 and any([i < self.temp_mean for i in self.temp_mean]):
+    def is_steady_state(self) -> bool:
+        """
+        State that temperature in past sample queue all converged below temperature min.
+        """
+        if self.duty_cycle != 0 and any([i < self.temp_min for i in self.temp_q]):
             return True
         return False
 
     def fan_manager(self) -> None:
         self.temp_q.append(self.get_cpu_temp())
-        if len(self.temp_q) < self.temp_q.maxlen or self.is_ramping_down or self.is_lingering:
+        if len(self.temp_q) < self.temp_q.maxlen or not self.is_steady_state or self.is_lingering:
             return
         self.duty_cycle = self.calc_dc_cpu(self.get_cpu_temp())
 
