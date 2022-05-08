@@ -3,6 +3,7 @@ from threading import Thread, Event
 import subprocess
 import atexit
 from collections import deque
+from statistics import mean
 
 BOARD = 10
 BCM = 11
@@ -94,8 +95,10 @@ class CPUTempController(NMosPWM):
             setattr(self, key, arg)
         if 'temp_q_size' not in kwargs:
             setattr(self, 'temp_q_size', 10)  # temperature queue size that stores past n temperature samples
-        self.temp_q = deque(maxlen=self.temp_q_size)
+        self.temp_q = deque(maxlen=self.temp_q_size)  # queue that store past temperatures for control decision
         self.job = Thread
+        self.__stop_flag = False
+        self.ramping = False
 
     @staticmethod
     def get_cpu_temp(round_to=2) -> float:
@@ -129,17 +132,45 @@ class CPUTempController(NMosPWM):
             time.sleep(duration)
             self.stop_pwm()
 
-    def calc_dc_cpu(self) -> int:
+    def calc_dc_cpu(self, cpu_temp: float) -> int:
         if not hasattr(self, 'temp_max') or not hasattr(self, 'temp_min'):
             raise ValueError('need to specify temp_mim and temp_max for linear duty cycle calc')
-        return self.linear_duty_cycle(temp_now=self.get_cpu_temp(), temp_min=self.temp_min, temp_max=self.temp_max,
+        return self.linear_duty_cycle(temp_now=cpu_temp, temp_min=self.temp_min, temp_max=self.temp_max,
                                       dc_min=self.duty_cycle_min, dc_max=self.duty_cycle_max)
+
+    @property
+    def is_lingering(self) -> bool:
+        if any([i < self.temp_min for i in self.temp_q]) and any([i > self.temp_max for i in self.temp_q]) \
+                and mean(self.temp_q) < self.temp_min:
+            return True
+        return False
+
+    @property
+    def is_ramping_down(self) -> bool:
+        if self.duty_cycle != 0 and any([i < self.temp_mean for i in self.temp_mean]):
+            return True
+        return False
+
+    def fan_manager(self) -> None:
+        self.temp_q.append(self.get_cpu_temp())
+        if len(self.temp_q) < self.temp_q.maxlen or self.is_ramping_down or self.is_lingering:
+            return
+        self.duty_cycle = self.calc_dc_cpu(self.get_cpu_temp())
 
     def poll_temp_interval(self) -> float:
         return 1
 
-    def start(self) -> None:
-        self.start_pwm(self.calc_dc_cpu())
+    def start_monitor(self):
+        self.__stop_flag = True
+        while self.__stop_flag is not False:
+            time.sleep(self.poll_temp_interval())
+            self.fan_manager()
+
+    def stop_monitor(self):
+        self.__stop_flag = True
+
+    def start_threading_monitor(self) -> None:
+        self.start_pwm(self.calc_dc_cpu(self.get_cpu_temp()))
         self.job = MonitorJob(self)
         self.job.start()
 
@@ -160,7 +191,7 @@ class MonitorJob(Thread):
 
     def run(self) -> None:
         while not self.stopped.wait(self.controller.poll_temp_interval()):
-            self.controller.set_frequency(self.controller.calc_dc_cpu())
+            self.controller.set_frequency(self.controller.calc_dc_cpu(self.controller.get_cpu_temp()))
 
 
 if __name__ == '__main__':
