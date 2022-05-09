@@ -47,7 +47,7 @@ class NMosPWM(Controller):
         self.pwm = HardwarePWM(pwm_channel=HW_PWM_MAP[pinout_type][pin_no], hz=self.__frequency)
 
     @property
-    def frequency(self):
+    def frequency(self) -> int:
         return self.__frequency
 
     @frequency.setter
@@ -55,7 +55,7 @@ class NMosPWM(Controller):
         self.set_frequency(value)
 
     @property
-    def duty_cycle(self):
+    def duty_cycle(self) -> int:
         return self.__duty_cycle
 
     @duty_cycle.setter
@@ -96,7 +96,7 @@ class CPUTempController(NMosPWM):
         if 'temp_q_size' not in kwargs:
             setattr(self, 'temp_q_size', 10)  # temperature queue size that stores past n temperature samples
         if 'polling_interval' not in kwargs:
-            setattr(self, 'polling_interval', 1)
+            setattr(self, 'polling_interval', 1)  # cpu temperature measuring interval
         self.temp_q = deque(maxlen=self.temp_q_size)  # queue that store past temperatures for control decision
         self.job = Thread
         self.__stop_flag = False
@@ -128,10 +128,15 @@ class CPUTempController(NMosPWM):
         dc = (dc_max - dc_min) / (temp_max - temp_min) * (temp_now - temp_min) + dc_min
         return int(dc) if dc >= dc_min else 0
 
-    def fan_self_test(self, duration=3) -> None:
+    def fan_self_test(self, from_dc=20, to_dc=50, interval=0.2) -> None:
+        """
+        Perform a self test for debugging purposes
+        """
         if self.is_stopped:
-            self.start_pwm(20)
-            time.sleep(duration)
+            self.start_pwm(0)
+            for i in range(from_dc, to_dc + 1):
+                self.frequency = i
+                time.sleep(interval)
             self.stop_pwm()
 
     def calc_dc_cpu(self, cpu_temp: float) -> int:
@@ -143,28 +148,41 @@ class CPUTempController(NMosPWM):
     @property
     def is_lingering(self) -> bool:
         """
-        lingering is a state that temperature hovering around the temperature set point. Fan should preserve previous action in this state.
+        lingering is a state that temperature hovering around the temperature set point. Fan should preserve previous
+        action in this state.
         """
         if any([i <= self.temp_min for i in self.temp_q]) and any([i > self.temp_min for i in self.temp_q]):
             return True
         return False
 
+    @property
+    def d2temperature(self) -> float:
+        """
+        Calculate second order derivative of past 3 samples. Second order derivative implies temperature increasing
+        trend.
+        :return:
+        """
+        return 1
+
     def fan_manager(self) -> None:
+        """
+        Applying fan on off control strategy
+        """
         self.temp_q.append(self.get_cpu_temp())
         if len(self.temp_q) < self.temp_q.maxlen or self.is_lingering:
-            print(f'lingering{self.is_lingering} -- {self.temp_q}')
             return
-        self.duty_cycle = self.calc_dc_cpu(self.temp_q[-1])
-        print(f'dc:{self.duty_cycle} -- {self.temp_q}')
+        new_dc = self.calc_dc_cpu(self.temp_q[-1])
+        if new_dc != self.duty_cycle:  # saving duty cycle assignment when duty cycle no change
+            self.duty_cycle = new_dc
 
-    def start_monitor(self):
+    def start_monitor(self) -> None:
         self.__stop_flag = False 
         self.start_pwm(0)
         while self.__stop_flag is not True:
             time.sleep(self.polling_interval)
             self.fan_manager()
 
-    def stop_monitor(self):
+    def stop_monitor(self) -> None:
         self.stop_pwm()
         self.__stop_flag = True
 
