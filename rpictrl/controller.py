@@ -94,6 +94,8 @@ class CPUTempController(NMosPWM):
             setattr(self, key, arg)
         if 'temp_q_size' not in kwargs:
             setattr(self, 'temp_q_size', 10)  # temperature queue size that stores past n temperature samples
+        if 'polling_interval' not in kwargs:
+            setattr(self, 'polling_interval', 1)
         self.temp_q = deque(maxlen=self.temp_q_size)  # queue that store past temperatures for control decision
         self.job = Thread
         self.__stop_flag = False
@@ -162,13 +164,10 @@ class CPUTempController(NMosPWM):
             return
         self.duty_cycle = self.calc_dc_cpu(self.get_cpu_temp())
 
-    def poll_temp_interval(self) -> float:
-        return 1
-
     def start_monitor(self):
         self.__stop_flag = True
         while self.__stop_flag is not False:
-            time.sleep(self.poll_temp_interval())
+            time.sleep(self.polling_interval)
             self.fan_manager()
 
     def stop_monitor(self):
