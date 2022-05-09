@@ -1,6 +1,7 @@
 from rpi_hardware_pwm import HardwarePWM
 from threading import Thread, Event
 import subprocess
+import time
 import atexit
 from collections import deque
 
@@ -142,35 +143,29 @@ class CPUTempController(NMosPWM):
     @property
     def is_lingering(self) -> bool:
         """
-        lingering in a state that temperature occasional above minimum turn on value and mean values lower than minimum.
-        i.e. not going to turn on fan at this state.
+        lingering is a state that temperature hovering around the temperature set point. Fan should preserve previous action in this state.
         """
-        if not all([i < self.temp_min for i in self.temp_q]):
-            return True
-        return False
-
-    @property
-    def is_steady_state(self) -> bool:
-        """
-        State that temperature in past sample queue all converged below temperature min.
-        """
-        if self.duty_cycle != 0 and any([i < self.temp_min for i in self.temp_q]):
+        if any([i <= self.temp_min for i in self.temp_q]) and any([i > self.temp_min for i in self.temp_q]):
             return True
         return False
 
     def fan_manager(self) -> None:
         self.temp_q.append(self.get_cpu_temp())
-        if len(self.temp_q) < self.temp_q.maxlen or not self.is_steady_state or self.is_lingering:
+        if len(self.temp_q) < self.temp_q.maxlen or self.is_lingering:
+            print(f'lingering{self.is_lingering}, ss:{self.is_steady_state} -- {self.temp_q}')
             return
-        self.duty_cycle = self.calc_dc_cpu(self.get_cpu_temp())
+        self.duty_cycle = self.calc_dc_cpu(self.temp_q[-1])
+        print(f'dc:{self.duty_cycle} -- {self.temp_q}')
 
     def start_monitor(self):
-        self.__stop_flag = True
-        while self.__stop_flag is not False:
+        self.__stop_flag = False 
+        self.start_pwm(0)
+        while self.__stop_flag is not True:
             time.sleep(self.polling_interval)
             self.fan_manager()
 
     def stop_monitor(self):
+        self.stop_pwm()
         self.__stop_flag = True
 
     def start_threading_monitor(self) -> None:
