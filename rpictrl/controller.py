@@ -152,7 +152,7 @@ class CPUTempController(NMosPWM):
     def fan_manager(self) -> None:
         self.temp_q.append(self.get_cpu_temp())
         if len(self.temp_q) < self.temp_q.maxlen or self.is_lingering:
-            print(f'lingering{self.is_lingering}, ss:{self.is_steady_state} -- {self.temp_q}')
+            print(f'lingering{self.is_lingering} -- {self.temp_q}')
             return
         self.duty_cycle = self.calc_dc_cpu(self.temp_q[-1])
         print(f'dc:{self.duty_cycle} -- {self.temp_q}')
