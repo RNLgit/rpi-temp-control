@@ -241,3 +241,4 @@ if __name__ == '__main__':
                             duty_cycle_max=ops.duty_cycle_max, settle_time=ops.settle_time)
     atexit.register(ctc.exit_handler)
     ctc.fan_self_test()
+    ctc.start_monitor()
