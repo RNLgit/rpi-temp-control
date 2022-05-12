@@ -135,7 +135,7 @@ class CPUTempController(NMosPWM):
         if self.is_stopped:
             self.start_pwm(0)
             for i in range(from_dc, to_dc + 1):
-                self.frequency = i
+                self.duty_cycle= i
                 time.sleep(interval)
             self.stop_pwm()
 
@@ -231,14 +231,12 @@ if __name__ == '__main__':
                         help='Temperature set point (to turn fan on)')
     parser.add_argument('-m', '--temperature_max', dest='temp_max', default=85, type=int,
                         help='Temperature point that turn fan to full speed')
-    parser.add_argument('-s', '--settle_time', dest='settle_time', default=10, type=int,
-                        help='After temperature reached min set point, delay time (s) before fan can turn back on')
 
     ops = parser.parse_args()
 
     ctc = CPUTempController(pin_no=ops.pin, freq=ops.frequency, pinout_type=type_map[ops.board_type],
                             temp_min=ops.temp_min, temp_max=ops.temp_max, duty_cycle_min=ops.duty_cycle,
-                            duty_cycle_max=ops.duty_cycle_max, settle_time=ops.settle_time)
+                            duty_cycle_max=ops.duty_cycle_max)
     atexit.register(ctc.exit_handler)
     ctc.fan_self_test()
     ctc.start_monitor()
