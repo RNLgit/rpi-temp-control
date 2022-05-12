@@ -2,6 +2,7 @@ from rpi_hardware_pwm import HardwarePWM
 from threading import Thread, Event
 import subprocess
 import time
+import signal
 import atexit
 from collections import deque
 
@@ -109,6 +110,7 @@ class CPUTempController(NMosPWM):
         self.temp_q = deque(maxlen=self.temp_q_size)  # queue that store past temperatures for control decision
         self.job = Thread
         self.ramping = False
+        signal.signal(signal.SIGTERM, self.stop_monitor)
 
     @staticmethod
     def get_cpu_temp(round_to=2) -> float:
@@ -214,7 +216,6 @@ class MonitorJob(Thread):
 
 if __name__ == '__main__':
     import argparse
-    import time
     type_map = {'board': BOARD, 'bcm': BCM}
 
     parser = argparse.ArgumentParser(description='Smart control RPI CPU core temperature set point with PWM fan')
@@ -240,4 +241,4 @@ if __name__ == '__main__':
                             duty_cycle_max=ops.duty_cycle_max)
     atexit.register(ctc.exit_handler)
     ctc.fan_self_test()
-    ctc.start_monitor()
+    ctc.start_monitor_thread()
