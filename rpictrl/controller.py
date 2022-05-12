@@ -184,10 +184,12 @@ class CPUTempController(NMosPWM):
 
     def stop_monitor(self) -> None:
         self.stop_pwm()
+        if hasattr(self.job, 'stop'):
+            self.job.stop()
         self.__stop_flag = True
 
-    def start_threading_monitor(self) -> None:
-        self.start_pwm(self.calc_dc_cpu(self.get_cpu_temp()))
+    def start_monitor_thread(self) -> None:
+        self.start_pwm(0)
         self.job = MonitorJob(self)
         self.job.start()
 
@@ -207,8 +209,8 @@ class MonitorJob(Thread):
         self.join()
 
     def run(self) -> None:
-        while not self.stopped.wait(self.controller.poll_temp_interval()):
-            self.controller.set_frequency(self.controller.calc_dc_cpu(self.controller.get_cpu_temp()))
+        while not self.stopped.wait(self.controller.polling_interval):
+            self.controller.fan_manager()
 
 
 if __name__ == '__main__':
