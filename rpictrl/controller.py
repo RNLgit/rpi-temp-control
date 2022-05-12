@@ -72,6 +72,8 @@ class NMosPWM(Controller):
         if not 0 <= duty_cycle <= 100:
             raise ValueError('Duty cycle can only be non negative int from 0 to 100')
         self.pwm.change_duty_cycle(duty_cycle)
+        if duty_cycle == 0:
+            self.is_stopped = True
         self.__duty_cycle = duty_cycle
 
     def start_pwm(self, duty_cycle: int) -> None:
@@ -87,6 +89,13 @@ class NMosPWM(Controller):
 
 
 class CPUTempController(NMosPWM):
+    """
+    Main cpu temperature controller object. Init this object to get threaded fan control.
+
+    e.g.
+    CPUTempController(pin_no=12, freq=25000, pinout_type=10, temp_min=50, temp_max=80, duty_cycle_min=20,
+        duty_cycle_max=100, settle_time=5)
+    """
     def __init__(self, **kwargs):
         for key, arg in kwargs.items():
             setattr(self, key, arg)
@@ -99,7 +108,6 @@ class CPUTempController(NMosPWM):
             setattr(self, 'polling_interval', 1)  # cpu temperature measuring interval
         self.temp_q = deque(maxlen=self.temp_q_size)  # queue that store past temperatures for control decision
         self.job = Thread
-        self.__stop_flag = False
         self.ramping = False
 
     @staticmethod
@@ -160,9 +168,8 @@ class CPUTempController(NMosPWM):
         """
         Calculate second order derivative of past 3 samples. Second order derivative implies temperature increasing
         trend.
-        :return:
         """
-        return 1
+        pass
 
     def fan_manager(self) -> None:
         """
@@ -175,18 +182,10 @@ class CPUTempController(NMosPWM):
         if new_dc != self.duty_cycle:  # saving duty cycle assignment when duty cycle no change
             self.duty_cycle = new_dc
 
-    def start_monitor(self) -> None:
-        self.__stop_flag = False 
-        self.start_pwm(0)
-        while self.__stop_flag is not True:
-            time.sleep(self.polling_interval)
-            self.fan_manager()
-
     def stop_monitor(self) -> None:
         self.stop_pwm()
         if hasattr(self.job, 'stop'):
             self.job.stop()
-        self.__stop_flag = True
 
     def start_monitor_thread(self) -> None:
         self.start_pwm(0)
