@@ -5,6 +5,8 @@ import time
 import signal
 import atexit
 from collections import deque
+import logging
+import os
 
 BOARD = 10
 BCM = 11
@@ -12,6 +14,9 @@ HW_PWM_MAP = {BOARD: {12: 0, 35: 1},
               BCM: {18: 0, 19: 1}}
 AUDIBLE_SPECTRUM = range(20, 20_000)
 RPI_TEMP_CMD = ['vcgencmd', 'measure_temp']
+
+logger = logging.getLogger('cpu-temp-control')
+logging.basicConfig(level=os.environ.get('LOGLEVEL', 'INFO'))
 
 
 class Controller(object):
@@ -111,6 +116,7 @@ class CPUTempController(NMosPWM):
         self.job = Thread
         self.ramping = False
         signal.signal(signal.SIGTERM, self.stop_monitor)
+        signal.signal(signal.SIGINT, self.stop_monitor)
 
     @staticmethod
     def get_cpu_temp(round_to=2) -> float:
@@ -148,6 +154,7 @@ class CPUTempController(NMosPWM):
                 self.duty_cycle= i
                 time.sleep(interval)
             self.stop_pwm()
+        logger.info(f'Fan self test from {from_dc} to {to_dc} done')
 
     def calc_dc_cpu(self, cpu_temp: float) -> int:
         if not hasattr(self, 'temp_max') or not hasattr(self, 'temp_min'):
@@ -185,6 +192,7 @@ class CPUTempController(NMosPWM):
             self.duty_cycle = new_dc
 
     def stop_monitor(self) -> None:
+        logger.warning('Stopping fan control')
         self.stop_pwm()
         if hasattr(self.job, 'stop'):
             self.job.stop()
@@ -193,6 +201,7 @@ class CPUTempController(NMosPWM):
         self.start_pwm(0)
         self.job = MonitorJob(self)
         self.job.start()
+        logger.info('CPU temperature monitor job started. monitoring temperautre...')
 
 
 class MonitorJob(Thread):
@@ -239,6 +248,8 @@ if __name__ == '__main__':
     ctc = CPUTempController(pin_no=ops.pin, freq=ops.frequency, pinout_type=type_map[ops.board_type],
                             temp_min=ops.temp_min, temp_max=ops.temp_max, duty_cycle_min=ops.duty_cycle,
                             duty_cycle_max=ops.duty_cycle_max)
+    logger.info('Shiny new CPU controller created')
     atexit.register(ctc.exit_handler)
     ctc.fan_self_test()
     ctc.start_monitor_thread()
+    ctc.job.join()
