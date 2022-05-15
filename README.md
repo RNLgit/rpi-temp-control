@@ -67,6 +67,16 @@ pwm_fan.duty_cycle  # query current pwm duty cycle
 pwm_fan.frequency  # query current pwm frequency
 ```
 
+## Control sensitivity dominating factors
+
+- Length of `CPUTempController.temp_q` determines the anti-lingering control strategy. Assigning larger `CPUTempController.temp_q_size` 
+at init will make controller less sensitive to temperature sense fluctuations. 
+
+- Value of `CPUTempController.polling_interval` determines sample time of temperature in seconds. The smaller the sample time, the more
+sensitive the controller regards to temperature change.
+
+- Therefore fan minimum turn on time from stall will be ```CPUTempController.temp_q * CPUTempController.polling_interval```
+
 ## Use as service upon startup
 
 1. use sudo to install required packages 
