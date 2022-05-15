@@ -9,6 +9,15 @@ Requires MOSFET setup connect to one of hardware control PWM pins
 
 ![Circuit](./image/NMosfet_switch.png)
 
+###GPIO Pins:
+Many GPIO can set to pwm output, but there're only limited number of pins can use hardware pwm which can set frequency
+higher than audible range. Checkout the correct pin to avoid unpleasant noise. e.g. on RPI 4 Model B, PIN 12 & 
+35 (Board pin ref) are hardware pwm pins.
+
+## Dependencies
+Requires [rpi-hardware-pwm](https://github.com/Pioreactor/rpi_hardware_pwm) to enable pwm frequency that can set beyond
+audible range. 
+
 # Setup Temp Control Upon Startup
 
 1. use sudo to install required packages 

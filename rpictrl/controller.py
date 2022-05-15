@@ -183,9 +183,9 @@ class CPUTempController(NMosPWM):
         Logging fan turn on/off info based on previous duty cycle value and current duty cycle value.
         """
         if self.duty_cycle == 0 and new_dc != 0:
-            self.logger.info(f'fan started cooling at duty cycle:{new_dc}')
+            self.logger.info(f'fan started cooling at duty cycle:{new_dc}. temp_q:{self.temp_q}')
         if self.duty_cycle != 0 and new_dc == 0:
-            self.logger.info('fan stopped cooling')
+            self.logger.info(f'fan stopped cooling. temp_q:{self.temp_q}')
 
     def fan_manager(self) -> None:
         """
