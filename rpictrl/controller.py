@@ -15,9 +15,6 @@ HW_PWM_MAP = {BOARD: {12: 0, 35: 1},
 AUDIBLE_SPECTRUM = range(20, 20_000)
 RPI_TEMP_CMD = ['vcgencmd', 'measure_temp']
 
-logger = logging.getLogger('cpu-temp-control')
-logging.basicConfig(level=os.environ.get('LOGLEVEL', 'INFO'))
-
 
 class Controller(object):
     def start_pwm(self, duty_cycle: int) -> None:
@@ -39,7 +36,7 @@ class Controller(object):
     def __del__(self):
         try:
             self.stop_pwm()
-        except:
+        except Exception:
             pass
 
 
@@ -117,6 +114,7 @@ class CPUTempController(NMosPWM):
         self.ramping = False
         signal.signal(signal.SIGTERM, self.stop_monitor)
         signal.signal(signal.SIGINT, self.stop_monitor)
+        self.logger = logging.getLogger()
 
     @staticmethod
     def get_cpu_temp(round_to=2) -> float:
@@ -151,10 +149,10 @@ class CPUTempController(NMosPWM):
         if self.is_stopped:
             self.start_pwm(0)
             for i in range(from_dc, to_dc + 1):
-                self.duty_cycle= i
+                self.duty_cycle = i
                 time.sleep(interval)
             self.stop_pwm()
-        logger.info(f'Fan self test from {from_dc} to {to_dc} done')
+        self.logger.info(f'Fan self test from {from_dc} to {to_dc} done')
 
     def calc_dc_cpu(self, cpu_temp: float) -> int:
         if not hasattr(self, 'temp_max') or not hasattr(self, 'temp_min'):
@@ -175,10 +173,19 @@ class CPUTempController(NMosPWM):
     @property
     def d2temperature(self) -> float:
         """
-        Calculate second order derivative of past 3 samples. Second order derivative implies temperature increasing
-        trend.
+        # TODO: Calculate second order derivative of past 3 samples. Second order derivative implies temperature
+            increasing trend.
         """
         pass
+
+    def fan_syslog(self, new_dc):
+        """
+        Logging fan turn on/off info based on previous duty cycle value and current duty cycle value.
+        """
+        if self.duty_cycle == 0 and new_dc != 0:
+            self.logger.info(f'fan started cooling at duty cycle:{new_dc}')
+        if self.duty_cycle != 0 and new_dc == 0:
+            self.logger.info('fan stopped cooling')
 
     def fan_manager(self) -> None:
         """
@@ -188,11 +195,12 @@ class CPUTempController(NMosPWM):
         if len(self.temp_q) < self.temp_q.maxlen or self.is_lingering:
             return
         new_dc = self.calc_dc_cpu(self.temp_q[-1])
+        self.fan_syslog(new_dc)
         if new_dc != self.duty_cycle:  # saving duty cycle assignment when duty cycle no change
             self.duty_cycle = new_dc
 
     def stop_monitor(self) -> None:
-        logger.warning('Stopping fan control')
+        self.logger.warning('Stopping fan control')
         self.stop_pwm()
         if hasattr(self.job, 'stop'):
             self.job.stop()
@@ -201,7 +209,7 @@ class CPUTempController(NMosPWM):
         self.start_pwm(0)
         self.job = MonitorJob(self)
         self.job.start()
-        logger.info('CPU temperature monitor job started. monitoring temperautre...')
+        self.logger.info('CPU temperature monitor job started. monitoring temperautre...')
 
 
 class MonitorJob(Thread):
@@ -244,6 +252,8 @@ if __name__ == '__main__':
                         help='Temperature point that turn fan to full speed')
 
     ops = parser.parse_args()
+    logging.basicConfig(level=os.environ.get('LOGLEVEL', 'INFO'))
+    logger = logging.getLogger('cpu-temp-control')
 
     ctc = CPUTempController(pin_no=ops.pin, freq=ops.frequency, pinout_type=type_map[ops.board_type],
                             temp_min=ops.temp_min, temp_max=ops.temp_max, duty_cycle_min=ops.duty_cycle,
