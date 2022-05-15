@@ -1,1 +1,1 @@
-from .controller import NMosPWM
+from .controller import NMosPWM, CPUTempController
