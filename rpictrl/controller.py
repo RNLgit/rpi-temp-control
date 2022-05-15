@@ -166,7 +166,7 @@ class CPUTempController(NMosPWM):
         lingering is a state that temperature hovering around the temperature set point. Fan should preserve previous
         action in this state.
         """
-        if any([i <= self.temp_min for i in self.temp_q]) and any([i > self.temp_min for i in self.temp_q]):
+        if any([i <= self.temp_min for i in self.temp_q]) and any([i >= self.temp_min for i in self.temp_q]):
             return True
         return False
 
