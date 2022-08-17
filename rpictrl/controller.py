@@ -139,6 +139,8 @@ class CPUTempController(NMosPWM):
         :param dc_max: max duty cycle at temp_max and above
         :return:
         """
+        if dc_min == dc_max:
+            return dc_min if temp_now > temp_min else 0
         dc = (dc_max - dc_min) / (temp_max - temp_min) * (temp_now - temp_min) + dc_min
         return int(dc) if dc >= dc_min else 0
 
